@@ -100,6 +100,14 @@ const SCHEMA = [
   )`,
   // std_cents = the standard price when a line was billed at the Preferred Partner rate (0 = not a partner line).
   `ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS std_cents INT NOT NULL DEFAULT 0`,
+  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    device TEXT DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_slot ON bookings(booking_date, booking_time) WHERE status IN ('requested','confirmed')`,
   `CREATE INDEX IF NOT EXISTS idx_booking_date ON bookings(booking_date)`,
   `CREATE INDEX IF NOT EXISTS idx_jobs_date ON jobs(job_date)`,

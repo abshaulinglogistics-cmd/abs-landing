@@ -367,3 +367,40 @@ export async function saveBookingSettings(f: FormData) {
   revalidatePath('/admin', 'layout');
   redirect('/admin/settings?saved=1#booking');
 }
+
+// ---------- phone notifications ----------
+export async function pushPublicKey() {
+  await requireAuth();
+  const { vapidKeys } = await import('./push');
+  return (await vapidKeys()).publicKey;
+}
+
+export async function savePushSubscription(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, device: string) {
+  await requireAuth();
+  if (!sub?.endpoint?.startsWith('https://') || !sub.keys?.p256dh || !sub.keys?.auth) throw new Error('Bad subscription');
+  await q(
+    `INSERT INTO push_subscriptions (endpoint, p256dh, auth, device) VALUES ($1,$2,$3,$4)
+     ON CONFLICT (endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, device = EXCLUDED.device`,
+    [sub.endpoint, sub.keys.p256dh, sub.keys.auth, String(device || '').slice(0, 80)],
+  );
+  revalidatePath('/admin/settings');
+}
+
+export async function removePushSubscription(endpoint: string) {
+  await requireAuth();
+  await q('DELETE FROM push_subscriptions WHERE endpoint=$1', [endpoint]);
+  revalidatePath('/admin/settings');
+}
+
+export async function removePushDevice(id: number) {
+  await requireAuth();
+  await q('DELETE FROM push_subscriptions WHERE id=$1', [id]);
+  revalidatePath('/admin/settings');
+  redirect('/admin/settings#notify');
+}
+
+export async function sendTestPush() {
+  await requireAuth();
+  const { notifyAll } = await import('./push');
+  return notifyAll({ title: 'ABS Admin', body: 'Notifications are working. You will get one for each new booking request.', url: '/admin/bookings', tag: 'test' });
+}

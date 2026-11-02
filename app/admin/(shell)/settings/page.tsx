@@ -1,6 +1,9 @@
 import { getSettings, loadServices } from '@/lib/data';
 import { getBookingSettings } from '@/lib/booking';
-import { saveBookingSettings, saveService, saveSettings } from '@/lib/actions';
+import { removePushDevice, saveBookingSettings, saveService, saveSettings } from '@/lib/actions';
+import PushSetup from '@/components/PushSetup';
+import { q } from '@/lib/db';
+import { fmtDate } from '@/lib/format';
 import { TERMS } from '@/lib/format';
 import { Flash } from '@/components/ui';
 
@@ -10,13 +13,33 @@ const dollars = (c: number) => (c / 100).toFixed(2);
 
 export default async function Settings({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const [s, services, bk] = await Promise.all([getSettings(), loadServices(), getBookingSettings()]);
+  const [s, services, bk, devices] = await Promise.all([
+    getSettings(), loadServices(), getBookingSettings(),
+    q<{ id: number; device: string; created_at: string }>("SELECT id, device, to_char(created_at AT TIME ZONE 'America/New_York', 'YYYY-MM-DD') AS created_at FROM push_subscriptions ORDER BY id"),
+  ]);
   const openDays = new Set(bk.book_days.split(',').map(Number));
   const DAYNAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return (
     <>
       <div className="head"><div><h1>Settings</h1><div className="sub">Business details on invoices and receipts, and the rate card used to build invoices.</div></div></div>
       <Flash sp={sp} />
+      <div className="card stack" id="notify" style={{ maxWidth: 860, marginBottom: 18 }}>
+        <h2>Phone notifications</h2>
+        <p className="muted small" style={{ margin: 0 }}>Get a notification on your phone the moment someone books on the website. Turn it on once on each phone (Anthony and Jadon each do their own).</p>
+        <PushSetup />
+        {devices.length > 0 && (
+          <div>
+            <div className="muted small" style={{ fontWeight: 600, marginBottom: 6 }}>Devices getting notifications</div>
+            <div className="rows">{devices.map((d) => (
+              <div className="row" key={d.id} style={{ padding: '8px 0' }}>
+                <div className="grow small">{d.device || 'Device'} <span className="muted">- added {fmtDate(d.created_at)}</span></div>
+                <form action={removePushDevice.bind(null, d.id)}><button className="btn ghost sm" type="submit">Remove</button></form>
+              </div>
+            ))}</div>
+          </div>
+        )}
+      </div>
+
       <form action={saveSettings} className="card stack" style={{ maxWidth: 860 }}>
         <h2>Business</h2>
         <div className="grid two">

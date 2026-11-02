@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
+import { notifyAll } from '@/lib/push';
 import { q } from '@/lib/db';
 import { bookingRef, getAvailability, SERVICES, SIZES } from '@/lib/booking';
 import { fmtDate, fmtTime } from '@/lib/format';
@@ -62,9 +63,19 @@ export async function POST(req: NextRequest) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
       [crypto.randomUUID().replace(/-/g, ''), service, size, date, time, name, company, phone, email, address, notes],
     );
+    const ref = bookingRef(rows[0].id);
+    // Ping the owners' phones after the customer gets their answer.
+    after(() =>
+      notifyAll({
+        title: `New booking: ${service}${size ? ` (${size})` : ''}`,
+        body: `${company || name} - ${fmtDate(date)} at ${fmtTime(time)}\n${address}`,
+        url: '/admin/bookings',
+        tag: ref,
+      }),
+    );
     return NextResponse.json({
       ok: true,
-      ref: bookingRef(rows[0].id),
+      ref,
       when: `${fmtDate(date)} at ${fmtTime(time)}`,
     });
   } catch (e: any) {
