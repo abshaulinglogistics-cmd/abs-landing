@@ -34,7 +34,7 @@ export async function getOrigin() {
 }
 
 // ---------- types ----------
-export type Item = { id?: number; description: string; qty: number; unit: string; rate_cents: number; kind: string };
+export type Item = { id?: number; description: string; qty: number; unit: string; rate_cents: number; std_cents?: number; kind: string };
 export type Payment = {
   id: number;
   invoice_id: number;

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { getOrigin, getSettings, loadInvoices } from '@/lib/data';
 import { addPayment, deleteInvoice, deletePayment, setInvoiceStatus } from '@/lib/actions';
 import { fmtDate, fmtQty, invNo, METHODS, money, rctNo, todayStr } from '@/lib/format';
-import { lineTotal } from '@/lib/calc';
+import { lineTotal, partnerStd } from '@/lib/calc';
 import { ConfirmButton, CopyButton } from '@/components/Client';
 import { Flash, StateBadge } from '@/components/ui';
 
@@ -49,10 +49,14 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
             <div className="tbl-wrap"><table>
               <thead><tr><th>Description</th><th className="right">Qty</th><th className="right">Rate</th><th className="right">Amount</th></tr></thead>
               <tbody>{inv.items.map((i, k) => (
-                <tr key={k}><td>{i.description}</td><td className="right num nowrap">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}</td><td className="right num">{money(i.rate_cents)}</td><td className="right num"><b>{money(lineTotal(i))}</b></td></tr>
+                <tr key={k}><td>{i.description}</td><td className="right num nowrap">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}</td><td className="right num">{partnerStd(i) > 0 && <div className="muted small"><s>{money(partnerStd(i))}</s></div>}{money(i.rate_cents)}</td><td className="right num"><b>{money(lineTotal(i))}</b></td></tr>
               ))}</tbody>
             </table></div>
             <div className="sum" style={{ padding: 16, maxWidth: 360, marginLeft: 'auto' }}>
+              {inv.t.partnerSavings > 0 && <>
+                <div><span className="muted">Standard price</span><span>{money(inv.t.standard)}</span></div>
+                <div className="good"><span>Preferred Partner savings</span><span>- {money(inv.t.partnerSavings)}</span></div>
+              </>}
               <div><span className="muted">Subtotal</span><span>{money(inv.t.subtotal)}</span></div>
               {inv.t.discount > 0 && <div className="good"><span>{inv.discount_label || 'Discount'}{inv.discount_type === 'percent' ? ` (${fmtQty(inv.discount_value)}%)` : ''}</span><span>- {money(inv.t.discount)}</span></div>}
               {inv.t.tax > 0 && <div><span className="muted">Tax ({fmtQty(inv.tax_pct)}%)</span><span>{money(inv.t.tax)}</span></div>}

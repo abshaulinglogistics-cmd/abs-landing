@@ -142,6 +142,7 @@ export async function saveInvoice(id: number | null, f: FormData) {
       qty: Number(i.qty) || 0,
       unit: String(i.unit ?? ''),
       rate_cents: Math.round(Number(i.rate_cents) || 0),
+      std_cents: Math.max(0, Math.round(Number(i.std_cents) || 0)),
       kind: i.kind === 'disposal' ? 'disposal' : 'service',
     }))
     .filter((i: any) => i.description && i.qty !== 0);
@@ -177,8 +178,8 @@ export async function saveInvoice(id: number | null, f: FormData) {
     let pos = 0;
     for (const it of items) {
       await query(
-        'INSERT INTO invoice_items (invoice_id, position, description, qty, unit, rate_cents, kind) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [iid, pos++, it.description, it.qty, it.unit, it.rate_cents, it.kind],
+        'INSERT INTO invoice_items (invoice_id, position, description, qty, unit, rate_cents, std_cents, kind) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+        [iid, pos++, it.description, it.qty, it.unit, it.rate_cents, it.std_cents, it.kind],
       );
     }
     return iid!;

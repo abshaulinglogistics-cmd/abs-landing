@@ -35,7 +35,7 @@ export default async function EditInvoice({ params, searchParams }: { params: Pr
           tax_pct: String(inv.tax_pct ?? 0),
           notes: inv.notes ?? '',
           lines: inv.items.map((i) => ({
-            description: i.description, qty: String(i.qty), unit: i.unit, rate: (i.rate_cents / 100).toFixed(2), kind: i.kind, edited: true,
+            description: i.description, qty: String(i.qty), unit: i.unit, rate: (i.rate_cents / 100).toFixed(2), std: i.std_cents || 0, kind: i.kind, edited: true,
             serviceId: known.has(i.description) ? services.find((s) => s.name === i.description)?.id : undefined,
           })),
         }}

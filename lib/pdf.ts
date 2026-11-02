@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import type { Invoice, Payment, Settings } from './data';
 import { fmtDate, fmtQty, invNo, money, rctNo } from './format';
-import { lineTotal } from './calc';
+import { lineTotal, partnerStd } from './calc';
 
 type RGB = [number, number, number];
 const GREEN: RGB = [28, 170, 98];
@@ -111,7 +111,8 @@ function itemsTable(p: Pen, inv: Invoice) {
   p.y += 24;
   inv.items.forEach((it, idx) => {
     const lines = p.wrap(it.description, 270, 10, true);
-    const h = Math.max(26, lines.length * 13 + 12);
+    const std = partnerStd(it);
+    const h = Math.max(std ? 38 : 26, lines.length * 13 + 12);
     p.ensure(h);
     if (idx % 2 === 1) p.rect(M, p.y, R - M, h, TINT);
     let ty = p.y + 17;
@@ -122,6 +123,15 @@ function itemsTable(p: Pen, inv: Invoice) {
     const mid = p.y + 17;
     p.t(`${fmtQty(it.qty)}${it.unit ? ' ' + it.unit : ''}`, cols.qty, mid, { align: 'right' });
     p.t(money(it.rate_cents), cols.rate, mid, { align: 'right' });
+    if (std) {
+      // Standard price, struck through, under the partner rate
+      const s = money(std);
+      p.t(s, cols.rate, mid + 12, { align: 'right', size: 8, color: MUTED });
+      p.doc.setFontSize(8);
+      const w = p.doc.getTextWidth(s);
+      p.hline(mid + 9.2, MUTED, cols.rate - w, cols.rate, 0.6);
+      p.t(`Save ${money(lineTotal({ qty: it.qty, rate_cents: std }) - lineTotal(it))}`, cols.amt, mid + 12, { align: 'right', size: 8, color: GREEN, bold: true });
+    }
     p.t(money(lineTotal(it)), cols.amt, mid, { align: 'right', bold: true });
     p.y += h;
     p.hline(p.y, LINE);
@@ -138,6 +148,10 @@ function totalsBlock(p: Pen, inv: Invoice, opts: { showPaid: boolean; paidThroug
     p.y += 18;
   };
   p.y += 4;
+  if (inv.t.partnerSavings > 0) {
+    row('Standard price', money(inv.t.standard));
+    row('Preferred Partner savings', '- ' + money(inv.t.partnerSavings), { color: GREEN, bold: true });
+  }
   row('Subtotal', money(inv.t.subtotal));
   if (inv.t.discount > 0) {
     const label =

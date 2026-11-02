@@ -65,6 +65,7 @@ const SCHEMA = [
     qty DOUBLE PRECISION NOT NULL DEFAULT 1,
     unit TEXT DEFAULT '',
     rate_cents INT NOT NULL DEFAULT 0,
+    std_cents INT NOT NULL DEFAULT 0,
     kind TEXT NOT NULL DEFAULT 'service'
   )`,
   `CREATE TABLE IF NOT EXISTS payments (
@@ -97,6 +98,8 @@ const SCHEMA = [
     job_id INT REFERENCES jobs(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
+  // std_cents = the standard price when a line was billed at the Preferred Partner rate (0 = not a partner line).
+  `ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS std_cents INT NOT NULL DEFAULT 0`,
   `CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_slot ON bookings(booking_date, booking_time) WHERE status IN ('requested','confirmed')`,
   `CREATE INDEX IF NOT EXISTS idx_booking_date ON bookings(booking_date)`,
   `CREATE INDEX IF NOT EXISTS idx_jobs_date ON jobs(job_date)`,

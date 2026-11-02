@@ -5,7 +5,7 @@ import { money, TERMS } from '@/lib/format';
 
 type Cust = { id: number; name: string; partner_rate: boolean; default_discount_pct: number };
 type Svc = { id: number; name: string; unit: string; kind: string; std_cents: number; partner_cents: number };
-type Line = { key: string; serviceId?: number; description: string; qty: string; unit: string; rate: string; kind: string; edited?: boolean };
+type Line = { key: string; serviceId?: number; description: string; qty: string; unit: string; rate: string; std?: number; kind: string; edited?: boolean };
 type Initial = {
   customer_id: number | '';
   job_id: number | '';
@@ -50,6 +50,8 @@ export default function InvoiceEditor({
   const [partner, setPartner] = useState(!!cust?.partner_rate);
 
   const svcPrice = (s: Svc, p: boolean) => (p && s.partner_cents > 0 ? s.partner_cents : s.std_cents);
+  // Standard price to show next to a partner-priced line (0 when the line isn't partner-priced).
+  const svcStd = (s: Svc, p: boolean) => (p && s.partner_cents > 0 && s.std_cents > s.partner_cents ? s.std_cents : 0);
 
   function pickCustomer(id: number | '') {
     setCustomerId(id);
@@ -67,7 +69,8 @@ export default function InvoiceEditor({
     setLines((ls) =>
       ls.map((l) => {
         const s = services.find((x) => x.id === l.serviceId);
-        return s && !l.edited ? { ...l, rate: dollars(svcPrice(s, p)) } : l;
+        if (!s) return l;
+        return l.edited ? { ...l, std: svcStd(s, p) } : { ...l, rate: dollars(svcPrice(s, p)), std: svcStd(s, p) };
       }),
     );
   }
@@ -76,13 +79,13 @@ export default function InvoiceEditor({
     if (!s) return;
     setLines((ls) => [
       ...ls,
-      { key: key(), serviceId: s.id, description: s.name, qty: '1', unit: s.unit, rate: dollars(svcPrice(s, partner)), kind: s.kind },
+      { key: key(), serviceId: s.id, description: s.name, qty: '1', unit: s.unit, rate: dollars(svcPrice(s, partner)), std: svcStd(s, partner), kind: s.kind },
     ]);
   }
   const patch = (k: string, p: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === k ? { ...l, ...p } : l)));
 
   const items = lines.map((l) => ({
-    description: l.description, qty: parseFloat(l.qty) || 0, unit: l.unit, rate_cents: cents(l.rate), kind: l.kind,
+    description: l.description, qty: parseFloat(l.qty) || 0, unit: l.unit, rate_cents: cents(l.rate), std_cents: l.std || 0, kind: l.kind,
   }));
   const dv = dType === 'percent' ? parseFloat(dValue) || 0 : cents(dValue);
   const t = useMemo(() => totals(items, { type: dType, value: dv }, parseFloat(tax) || 0), [JSON.stringify(items), dType, dv, tax]); // eslint-disable-line
@@ -115,7 +118,12 @@ export default function InvoiceEditor({
                   <span className="lab">Rate $</span>
                   <input aria-label="Rate" inputMode="decimal" value={l.rate} onChange={(e) => patch(l.key, { rate: e.target.value, edited: true })} />
                 </label>
-                <div className="amt num">{money(t.lines[lines.indexOf(l)] ?? 0)}</div>
+                <div className="amt num">
+                  {money(t.lines[lines.indexOf(l)] ?? 0)}
+                  {!!l.std && l.std > cents(l.rate) && (
+                    <div className="good small" style={{ fontWeight: 500 }}>Std {money(l.std)}, saves {money(Math.round((parseFloat(l.qty) || 0) * (l.std - cents(l.rate))))}</div>
+                  )}
+                </div>
                 <button type="button" className="btn ghost x" aria-label="Remove line" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}>
                   &times;
                 </button>
@@ -215,6 +223,10 @@ export default function InvoiceEditor({
 
         <div className="card">
           <div className="sum">
+            {t.partnerSavings > 0 && <>
+              <div><span className="muted">Standard price</span><span>{money(t.standard)}</span></div>
+              <div className="good"><span>Preferred Partner savings</span><span>- {money(t.partnerSavings)}</span></div>
+            </>}
             <div><span className="muted">Subtotal</span><span>{money(t.subtotal)}</span></div>
             {t.discount > 0 && <div className="good"><span>{dLabel || 'Discount'}{dType === 'percent' ? ` (${dValue}%)` : ''}</span><span>- {money(t.discount)}</span></div>}
             {t.tax > 0 && <div><span className="muted">Tax</span><span>{money(t.tax)}</span></div>}

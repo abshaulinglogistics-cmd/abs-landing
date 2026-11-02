@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getSettings, loadInvoices } from '@/lib/data';
-import { lineTotal } from '@/lib/calc';
+import { lineTotal, partnerStd } from '@/lib/calc';
 import { fmtDate, fmtQty, invNo, money, rctNo } from '@/lib/format';
 
 export const metadata = { title: 'Invoice', robots: { index: false, follow: false } };
@@ -28,10 +28,14 @@ export default async function PublicInvoice({ params }: { params: Promise<{ toke
         <div className="tbl-wrap"><table>
           <thead><tr><th>Description</th><th className="right">Qty</th><th className="right">Rate</th><th className="right">Amount</th></tr></thead>
           <tbody>{inv.items.map((i, k) => (
-            <tr key={k}><td>{i.description}</td><td className="right num nowrap">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}</td><td className="right num">{money(i.rate_cents)}</td><td className="right num"><b>{money(lineTotal(i))}</b></td></tr>
+            <tr key={k}><td>{i.description}</td><td className="right num nowrap">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}</td><td className="right num">{partnerStd(i) > 0 && <div className="muted small"><s>{money(partnerStd(i))}</s></div>}{money(i.rate_cents)}</td><td className="right num"><b>{money(lineTotal(i))}</b></td></tr>
           ))}</tbody>
         </table></div>
         <div className="sum" style={{ maxWidth: 340, marginLeft: 'auto', width: '100%' }}>
+          {inv.t.partnerSavings > 0 && <>
+            <div><span className="muted">Standard price</span><span>{money(inv.t.standard)}</span></div>
+            <div className="good"><span>Preferred Partner savings</span><span>- {money(inv.t.partnerSavings)}</span></div>
+          </>}
           <div><span className="muted">Subtotal</span><span>{money(inv.t.subtotal)}</span></div>
           {inv.t.discount > 0 && <div className="good"><span>{inv.discount_label || 'Discount'}{inv.discount_type === 'percent' ? ` (${fmtQty(inv.discount_value)}%)` : ''}</span><span>- {money(inv.t.discount)}</span></div>}
           {inv.t.tax > 0 && <div><span className="muted">Tax</span><span>{money(inv.t.tax)}</span></div>}
@@ -39,6 +43,9 @@ export default async function PublicInvoice({ params }: { params: Promise<{ toke
           {inv.paid > 0 && <div><span className="muted">Paid</span><span>- {money(inv.paid)}</span></div>}
           <div className="total" style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}><span>Balance due</span><span>{money(Math.max(0, inv.balance))}</span></div>
         </div>
+        {inv.t.partnerSavings > 0 && (
+          <div className="note" role="note">You saved <b>{money(inv.t.partnerSavings)}</b> on this invoice with Preferred Partner rates.</div>
+        )}
         {inv.payments.length > 0 && (
           <div><h3>Payments received</h3>
             <div className="rows" style={{ marginTop: 8 }}>{inv.payments.map((p) => (
