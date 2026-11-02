@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { getSettings, loadInvoices, loadJobs } from '@/lib/data';
+import { getOrigin, getSettings, loadInvoices, loadJobs } from '@/lib/data';
+import { canPayByCard, cardFee } from '@/lib/square';
 import { invoicePdf } from '@/lib/pdf';
 import { fmtDate, invNo } from '@/lib/format';
 
@@ -16,7 +17,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
     const [j] = await loadJobs('WHERE j.id = $1', [inv.job_id]);
     if (j) jobLine = [j.title, fmtDate(j.job_date), j.address].filter(Boolean).join('  |  ');
   }
-  const buf = invoicePdf(inv, s, jobLine);
+  const pay = canPayByCard(inv, s) ? { cardFee: cardFee(inv.balance, s), link: `${await getOrigin()}/i/${inv.token}` } : undefined;
+  const buf = invoicePdf(inv, s, jobLine, pay);
   const dl = req.nextUrl.searchParams.get('download') === '1';
   return new Response(buf, {
     headers: {

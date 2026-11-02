@@ -108,6 +108,18 @@ const SCHEMA = [
     device TEXT DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
+  // Square card payments: one row per checkout link we hand a customer.
+  `CREATE TABLE IF NOT EXISTS card_links (
+    id SERIAL PRIMARY KEY,
+    invoice_id INT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    base_cents INT NOT NULL,
+    fee_cents INT NOT NULL,
+    order_id TEXT NOT NULL UNIQUE,
+    url TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `ALTER TABLE payments ADD COLUMN IF NOT EXISTS external_id TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS uq_payment_external ON payments(external_id)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_slot ON bookings(booking_date, booking_time) WHERE status IN ('requested','confirmed')`,
   `CREATE INDEX IF NOT EXISTS idx_booking_date ON bookings(booking_date)`,
   `CREATE INDEX IF NOT EXISTS idx_jobs_date ON jobs(job_date)`,

@@ -202,7 +202,7 @@ function stamp(p: Pen, text: string) {
   p.doc.restoreGraphicsState();
 }
 
-export function invoicePdf(inv: Invoice, s: Settings, jobLine?: string): ArrayBuffer {
+export function invoicePdf(inv: Invoice, s: Settings, jobLine?: string, pay?: { cardFee?: number; link?: string }): ArrayBuffer {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const p = new Pen(doc, s);
   p.header('INVOICE', invNo(inv.number));
@@ -248,7 +248,14 @@ export function invoicePdf(inv: Invoice, s: Settings, jobLine?: string): ArrayBu
     }
     p.y += 10;
   }
-  if (inv.balance > 0 && inv.state !== 'void') textBlock(p, 'How to pay', s.payment_instructions);
+  if (inv.balance > 0 && inv.state !== 'void') {
+    const ways = [
+      s.zelle_to ? `Zelle (no fee): send ${money(inv.balance)} to ${s.zelle_to}${s.zelle_name ? ` (${s.zelle_name})` : ''} with ${invNo(inv.number)} in the memo.` : '',
+      pay?.link && pay.cardFee !== undefined ? `Card, Apple Pay or Google Pay: ${money(inv.balance + pay.cardFee)} including a ${money(pay.cardFee)} card processing fee. Pay online at ${pay.link}` : '',
+      s.payment_instructions,
+    ].filter(Boolean);
+    textBlock(p, 'How to pay', ways.join('\n'));
+  }
   textBlock(p, 'Notes', inv.notes);
   textBlock(p, '', s.invoice_footer);
 

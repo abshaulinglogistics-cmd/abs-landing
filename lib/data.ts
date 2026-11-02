@@ -17,6 +17,12 @@ export const SETTING_DEFAULTS = {
   default_terms_days: '0',
   default_tax_pct: '0',
   // New invoices/receipts never get a number below these (so numbering doesn't start at 1).
+  // Getting paid
+  zelle_to: '',
+  zelle_name: 'ABS Hauling & Logistics',
+  card_enabled: '',
+  card_fee_pct: '3',
+  card_fee_fixed: '0',
   invoice_start_no: '2418',
   receipt_start_no: '2418',
 };

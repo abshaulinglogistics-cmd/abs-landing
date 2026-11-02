@@ -1,6 +1,8 @@
 import { getSettings, loadServices } from '@/lib/data';
 import { getBookingSettings } from '@/lib/booking';
-import { removePushDevice, saveBookingSettings, saveService, saveSettings } from '@/lib/actions';
+import { removePushDevice, saveBookingSettings, saveGettingPaid, saveService, saveSettings } from '@/lib/actions';
+import { squareLocation, squareReady } from '@/lib/square';
+import { getOrigin } from '@/lib/data';
 import PushSetup from '@/components/PushSetup';
 import { q } from '@/lib/db';
 import { fmtDate } from '@/lib/format';
@@ -17,6 +19,12 @@ export default async function Settings({ searchParams }: { searchParams: Promise
     getSettings(), loadServices(), getBookingSettings(),
     q<{ id: number; device: string; created_at: string }>("SELECT id, device, to_char(created_at AT TIME ZONE 'America/New_York', 'YYYY-MM-DD') AS created_at FROM push_subscriptions ORDER BY id"),
   ]);
+  let square: { ok: boolean; msg: string } = { ok: false, msg: 'Not connected yet. Add SQUARE_ACCESS_TOKEN in Vercel (steps below).' };
+  if (squareReady()) {
+    try { const l = await squareLocation(); square = { ok: true, msg: `Connected to Square (${l.name})` }; }
+    catch (e: any) { square = { ok: false, msg: `Square did not accept the access token: ${e?.message ?? e}` }; }
+  }
+  const webhookUrl = `${await getOrigin()}/api/square/webhook`;
   const openDays = new Set(bk.book_days.split(',').map(Number));
   const DAYNAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return (
@@ -40,6 +48,32 @@ export default async function Settings({ searchParams }: { searchParams: Promise
         )}
       </div>
 
+      <form action={saveGettingPaid} className="card stack" id="getpaid" style={{ maxWidth: 860, marginBottom: 18 }}>
+        <h2>Getting paid</h2>
+        <p className="muted small" style={{ margin: 0 }}>Shown on every unpaid invoice (the customer link and the PDF). Zelle has no fee. Card payments go through Square, and the card fee is added for the customer to pay.</p>
+        <div className="grid two">
+          <label className="f">Zelle phone or email<input name="zelle_to" defaultValue={s.zelle_to} placeholder="404-740-9500" /></label>
+          <label className="f">Name on the Zelle account<input name="zelle_name" defaultValue={s.zelle_name} /></label>
+        </div>
+        <label className="f check"><input type="checkbox" name="card_enabled" defaultChecked={s.card_enabled === '1'} />Show a "Pay by card" button on invoices</label>
+        <div className="grid">
+          <label className="f">Card fee %<input name="card_fee_pct" inputMode="decimal" defaultValue={s.card_fee_pct} /></label>
+          <label className="f">Plus a flat fee $<input name="card_fee_fixed" inputMode="decimal" defaultValue={s.card_fee_fixed} /></label>
+        </div>
+        <div className={`note${square.ok ? '' : ' err'}`} style={{ margin: 0 }}>{square.msg}</div>
+        <details>
+          <summary className="small" style={{ cursor: 'pointer', fontWeight: 600 }}>How to connect Square</summary>
+          <ol className="small" style={{ margin: '8px 0 0', paddingLeft: 18, display: 'grid', gap: 6 }}>
+            <li>Sign in at <b>developer.squareup.com</b> with your Square account and create an application (any name, e.g. ABS Admin).</li>
+            <li>In the app, switch to <b>Production</b>, open <b>Credentials</b> and copy the <b>Production access token</b>.</li>
+            <li>Open <b>Webhooks &gt; Subscriptions</b>, add a subscription for Production with this URL: <code style={{ wordBreak: 'break-all' }}>{webhookUrl}</code> and the events <b>payment.created</b> and <b>payment.updated</b>. Save it and copy its <b>Signature key</b>.</li>
+            <li>In Vercel, open the project, <b>Settings &gt; Environment Variables</b>, add <code>SQUARE_ACCESS_TOKEN</code> and <code>SQUARE_WEBHOOK_SIGNATURE_KEY</code>, then redeploy.</li>
+            <li>Tick the box above and save. Card payments then show up on the invoice by themselves, with a receipt, and you get a phone notification.</li>
+          </ol>
+        </details>
+        <div><button className="btn" type="submit">Save payment settings</button></div>
+      </form>
+
       <form action={saveSettings} className="card stack" style={{ maxWidth: 860 }}>
         <h2>Business</h2>
         <div className="grid two">
@@ -50,7 +84,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           <label className="f">Address<input name="address" defaultValue={s.address} /></label>
           <label className="f">Website<input name="website" defaultValue={s.website} /></label>
           <label className="f span-all">Tagline (printed at the bottom of every PDF)<input name="tagline" defaultValue={s.tagline} /></label>
-          <label className="f span-all">How to pay (shown on unpaid invoices)<textarea name="payment_instructions" defaultValue={s.payment_instructions} placeholder="e.g. Zelle to 404-740-9500, or cash on site" /></label>
+          <label className="f span-all">Other payment notes (shown on unpaid invoices, under Zelle and card)<textarea name="payment_instructions" defaultValue={s.payment_instructions} placeholder="e.g. Zelle to 404-740-9500, or cash on site" /></label>
           <label className="f span-all">Invoice footer<textarea name="invoice_footer" defaultValue={s.invoice_footer} /></label>
           <label className="f">Default payment terms
             <select name="default_terms_days" defaultValue={s.default_terms_days}>{TERMS.map((t) => <option key={t.days} value={t.days}>{t.label}</option>)}</select>

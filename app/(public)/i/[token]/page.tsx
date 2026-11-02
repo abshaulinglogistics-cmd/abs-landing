@@ -2,14 +2,19 @@ import { notFound } from 'next/navigation';
 import { getSettings, loadInvoices } from '@/lib/data';
 import { lineTotal, partnerStd } from '@/lib/calc';
 import { fmtDate, fmtQty, invNo, money, rctNo } from '@/lib/format';
+import { canPayByCard, cardFee } from '@/lib/square';
 
 export const metadata = { title: 'Invoice', robots: { index: false, follow: false } };
 
-export default async function PublicInvoice({ params }: { params: Promise<{ token: string }> }) {
+export default async function PublicInvoice({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { token } = await params;
+  const sp = await searchParams;
   const [inv] = await loadInvoices({ token });
   if (!inv) notFound();
   const s = await getSettings();
+  const owes = inv.balance > 0 && inv.state !== 'void';
+  const card = canPayByCard(inv, s);
+  const fee = card ? cardFee(inv.balance, s) : 0;
   return (
     <>
       <div className="pub-head">
@@ -19,16 +24,19 @@ export default async function PublicInvoice({ params }: { params: Promise<{ toke
       <div className="pub-body">
         {inv.state === 'paid' && <div className="paid-banner">PAID IN FULL</div>}
         {inv.state === 'void' && <div className="note err">This invoice has been voided.</div>}
+        {sp.card === '1' && owes && <div className="note" role="status">Thank you! Your card payment is being confirmed. This page will show it as paid within a minute or two.</div>}
+        {sp.card === '1' && !owes && inv.state !== 'void' && <div className="note" role="status">Thank you! Your card payment was received.</div>}
+        {sp.card === 'error' && <div className="note err" role="alert">Card checkout is not available right now. Please pay with Zelle, or call {s.phone}.</div>}
         <div className="grid two">
           <div><div className="muted small">From</div><b>{s.business_name}</b><div>{s.phone}</div><div>{s.email}</div></div>
           <div><div className="muted small">Bill to</div><b>{inv.customer_name}</b>{inv.customer_contact && <div>{inv.customer_contact}</div>}{inv.customer_address && <div>{inv.customer_address}</div>}</div>
           <div><div className="muted small">Issued</div><b>{fmtDate(inv.issue_date)}</b></div>
           <div><div className="muted small">Due</div><b>{inv.due_date === inv.issue_date ? 'On receipt' : fmtDate(inv.due_date)}</b></div>
         </div>
-        <div className="tbl-wrap"><table>
+        <div className="tbl-wrap"><table className="stack-sm items">
           <thead><tr><th>Description</th><th className="right">Qty</th><th className="right">Rate</th><th className="right">Amount</th></tr></thead>
           <tbody>{inv.items.map((i, k) => (
-            <tr key={k}><td>{i.description}</td><td className="right num nowrap">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}</td><td className="right num">{partnerStd(i) > 0 && <div className="muted small"><s>{money(partnerStd(i))}</s></div>}{money(i.rate_cents)}</td><td className="right num"><b>{money(lineTotal(i))}</b></td></tr>
+            <tr key={k}><td className="c-main">{i.description}</td><td className="right num nowrap c-sub">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}<span className="sm-only"> x</span></td><td className="right num c-sub">{partnerStd(i) > 0 && <s className="muted small std-was">{money(partnerStd(i))}</s>}{money(i.rate_cents)}</td><td className="right num c-amt"><b>{money(lineTotal(i))}</b></td><td className="c-break" aria-hidden="true" /></tr>
           ))}</tbody>
         </table></div>
         <div className="sum" style={{ maxWidth: 340, marginLeft: 'auto', width: '100%' }}>
@@ -57,7 +65,30 @@ export default async function PublicInvoice({ params }: { params: Promise<{ toke
           </div>
         )}
         {inv.notes && <div><h3>Notes</h3><div>{inv.notes}</div></div>}
-        {inv.balance > 0 && inv.state !== 'void' && <div><h3>How to pay</h3><div>{s.payment_instructions}</div></div>}
+        {owes && (
+          <div className="stack" style={{ gap: 12 }}>
+            <h3>How to pay</h3>
+            <div className="paygrid">
+              {s.zelle_to && (
+                <div className="paybox">
+                  <div className="pay-k">Zelle <span className="badge green">No fee</span></div>
+                  <div className="pay-v">{money(inv.balance)}</div>
+                  <div className="small">Send to <b>{s.zelle_to}</b>{s.zelle_name ? <> ({s.zelle_name})</> : null}. Put <b>{invNo(inv.number)}</b> in the memo.</div>
+                </div>
+              )}
+              {card && (
+                <form className="paybox" method="post" action={`/api/pay/${inv.token}`}>
+                  <div className="pay-k">Card, Apple Pay or Google Pay</div>
+                  <div className="pay-v">{money(inv.balance + fee)}</div>
+                  <div className="small muted">{money(inv.balance)} + {money(fee)} card processing fee{s.zelle_to ? '. Pay with Zelle to skip the fee.' : '.'}</div>
+                  <button className="btn" type="submit" style={{ marginTop: 4 }}>Pay {money(inv.balance + fee)} by card</button>
+                  <div className="muted small">Secure checkout by Square.</div>
+                </form>
+              )}
+            </div>
+            {s.payment_instructions && <div className="small">{s.payment_instructions}</div>}
+          </div>
+        )}
         <div className="muted small">{s.invoice_footer}</div>
         <div className="actions"><a className="btn" href={`/api/pdf/invoice/${inv.token}?download=1`}>Download PDF</a></div>
       </div>

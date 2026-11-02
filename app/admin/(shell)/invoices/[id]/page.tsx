@@ -46,10 +46,10 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         <div className="stack">
           <div className="card flush">
             <div className="card-head"><h2>Breakdown</h2><span className="muted small">Issued {fmtDate(inv.issue_date)} - Due {inv.due_date === inv.issue_date ? 'on receipt' : fmtDate(inv.due_date)}</span></div>
-            <div className="tbl-wrap"><table>
+            <div className="tbl-wrap"><table className="stack-sm items">
               <thead><tr><th>Description</th><th className="right">Qty</th><th className="right">Rate</th><th className="right">Amount</th></tr></thead>
               <tbody>{inv.items.map((i, k) => (
-                <tr key={k}><td>{i.description}</td><td className="right num nowrap">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}</td><td className="right num">{partnerStd(i) > 0 && <div className="muted small"><s>{money(partnerStd(i))}</s></div>}{money(i.rate_cents)}</td><td className="right num"><b>{money(lineTotal(i))}</b></td></tr>
+                <tr key={k}><td className="c-main">{i.description}</td><td className="right num nowrap c-sub">{fmtQty(i.qty)}{i.unit ? ` ${i.unit}` : ''}<span className="sm-only"> x</span></td><td className="right num c-sub">{partnerStd(i) > 0 && <s className="muted small std-was">{money(partnerStd(i))}</s>}{money(i.rate_cents)}</td><td className="right num c-amt"><b>{money(lineTotal(i))}</b></td><td className="c-break" aria-hidden="true" /></tr>
               ))}</tbody>
             </table></div>
             <div className="sum" style={{ padding: 16, maxWidth: 360, marginLeft: 'auto' }}>

@@ -239,6 +239,25 @@ export async function deletePayment(paymentId: number, invoiceId: number) {
   redirect(`/admin/invoices/${invoiceId}`);
 }
 
+// ---------- getting paid (Zelle + Square card) ----------
+export async function saveGettingPaid(f: FormData) {
+  await requireAuth();
+  const pct = Math.max(0, Math.min(10, Number(s(f, 'card_fee_pct')) || 0));
+  const fixed = Math.max(0, Math.min(5, toCents(s(f, 'card_fee_fixed')) / 100));
+  const vals: Record<string, string> = {
+    zelle_to: s(f, 'zelle_to'),
+    zelle_name: s(f, 'zelle_name'),
+    card_enabled: f.get('card_enabled') === 'on' ? '1' : '',
+    card_fee_pct: String(pct),
+    card_fee_fixed: fixed.toFixed(2),
+  };
+  for (const [k, v] of Object.entries(vals)) {
+    await q('INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', [k, v]);
+  }
+  revalidatePath('/admin', 'layout');
+  redirect('/admin/settings?saved=1#getpaid');
+}
+
 // ---------- settings & rate card ----------
 export async function saveSettings(f: FormData) {
   await requireAuth();

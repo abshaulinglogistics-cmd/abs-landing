@@ -302,3 +302,15 @@ td .sub { color: var(--muted); font-size: 13px; }
   table.stack-sm td.c-hide { display: none; }
 }
 @media (min-width: 641px) { table.stack-sm td.c-break { display: none; } }
+
+/* Customer invoice: payment options */
+.paygrid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.paybox { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; background: var(--surface-2); }
+.pay-k { font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pay-v { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+table.items .std-was { display: block; }
+.sm-only { display: none; }
+@media (max-width: 640px) {
+  .sm-only { display: inline; }
+  table.items .std-was { display: inline; margin-right: 6px; }
+}
