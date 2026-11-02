@@ -40,6 +40,7 @@ export function Flash({ sp }: { sp: Record<string, string | undefined> }) {
     'has-records': 'This customer has jobs or invoices, so it cannot be deleted. Mark it inactive instead.',
     'has-payments': 'This invoice has payments. Delete the payments first, or void the invoice.',
     service: 'A rate card entry needs a name.',
+    number: 'Another invoice already uses that number. Pick a different one.',
     '1': 'Add a customer and at least one line item.',
   };
   if (sp.error) return <div className="note err" role="alert">{msgs[sp.error] ?? 'Something did not save. Check the form and try again.'}</div>;

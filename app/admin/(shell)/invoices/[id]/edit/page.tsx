@@ -25,6 +25,7 @@ export default async function EditInvoice({ params, searchParams }: { params: Pr
         cancelHref={`/admin/invoices/${inv.id}`}
         hasPayments={inv.payments.length > 0}
         initial={{
+          number: inv.number,
           customer_id: inv.customer_id,
           job_id: inv.job_id ?? '',
           issue_date: inv.issue_date,

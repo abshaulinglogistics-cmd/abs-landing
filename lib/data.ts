@@ -16,6 +16,9 @@ export const SETTING_DEFAULTS = {
   invoice_footer: 'Dump and disposal fees are passed through at cost. Thank you for your business.',
   default_terms_days: '0',
   default_tax_pct: '0',
+  // New invoices/receipts never get a number below these (so numbering doesn't start at 1).
+  invoice_start_no: '2418',
+  receipt_start_no: '2418',
 };
 export type Settings = typeof SETTING_DEFAULTS;
 
@@ -213,3 +216,49 @@ export type Service = {
 };
 export const loadServices = (activeOnly = false) =>
   q<Service>(`SELECT * FROM services ${activeOnly ? 'WHERE active' : ''} ORDER BY sort, id`);
+
+// ---------- payments ----------
+export type PaymentRow = Payment & {
+  invoice_number: number;
+  invoice_token: string;
+  invoice_status: string;
+  customer_id: number;
+  customer_name: string;
+};
+
+// Every payment (newest first), with its invoice and customer. Payments on voided invoices are left out.
+export async function loadPayments(from?: string, to?: string): Promise<PaymentRow[]> {
+  const where = ["i.status <> 'void'"];
+  const params: string[] = [];
+  if (from) { params.push(from); where.push(`p.paid_date >= $${params.length}`); }
+  if (to) { params.push(to); where.push(`p.paid_date <= $${params.length}`); }
+  return q<PaymentRow>(
+    `SELECT p.*, i.number AS invoice_number, i.token AS invoice_token, i.status AS invoice_status,
+            c.id AS customer_id, c.name AS customer_name
+     FROM payments p JOIN invoices i ON i.id = p.invoice_id JOIN customers c ON c.id = i.customer_id
+     WHERE ${where.join(' AND ')}
+     ORDER BY p.paid_date DESC, p.id DESC`,
+    params,
+  );
+}
+
+// Named date ranges used by the Payments page and its CSV export.
+export const PERIODS: [string, string][] = [
+  ['month', 'This month'], ['last-month', 'Last month'], ['year', 'This year'], ['last-year', 'Last year'], ['all', 'All time'],
+];
+export function periodRange(key: string, today = todayStr()): { from?: string; to?: string; label: string } {
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const label = PERIODS.find((p) => p[0] === key)?.[1] ?? 'This month';
+  switch (key) {
+    case 'all': return { label };
+    case 'year': return { from: `${y}-01-01`, to: `${y}-12-31`, label };
+    case 'last-year': return { from: `${y - 1}-01-01`, to: `${y - 1}-12-31`, label };
+    case 'last-month': {
+      const ly = m === 1 ? y - 1 : y, lm = m === 1 ? 12 : m - 1;
+      return { from: `${ly}-${pad(lm)}-01`, to: `${ly}-${pad(lm)}-31`, label };
+    }
+    default: return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-31`, label: 'This month' };
+  }
+}

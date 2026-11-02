@@ -7,6 +7,7 @@ type Cust = { id: number; name: string; partner_rate: boolean; default_discount_
 type Svc = { id: number; name: string; unit: string; kind: string; std_cents: number; partner_cents: number };
 type Line = { key: string; serviceId?: number; description: string; qty: string; unit: string; rate: string; std?: number; kind: string; edited?: boolean };
 type Initial = {
+  number?: number; // set when editing
   customer_id: number | '';
   job_id: number | '';
   issue_date: string;
@@ -46,6 +47,7 @@ export default function InvoiceEditor({
   const [dLabel, setDLabel] = useState(initial.discount_label);
   const [tax, setTax] = useState(initial.tax_pct);
   const [notes, setNotes] = useState(initial.notes);
+  const [num, setNum] = useState(initial.number ? String(initial.number) : '');
   const cust = customers.find((c) => c.id === customerId);
   const [partner, setPartner] = useState(!!cust?.partner_rate);
 
@@ -91,7 +93,7 @@ export default function InvoiceEditor({
   const t = useMemo(() => totals(items, { type: dType, value: dv }, parseFloat(tax) || 0), [JSON.stringify(items), dType, dv, tax]); // eslint-disable-line
 
   const payload = JSON.stringify({
-    customer_id: customerId, job_id: initial.job_id || null, issue_date: issue, terms_days: terms, items,
+    number: initial.number ? parseInt(num) || initial.number : undefined, customer_id: customerId, job_id: initial.job_id || null, issue_date: issue, terms_days: terms, items,
     discount_type: dType, discount_value: dv, discount_label: dLabel, tax_pct: parseFloat(tax) || 0, notes,
   });
   const canSave = !!customerId && items.some((i) => i.description && i.qty);
@@ -169,6 +171,12 @@ export default function InvoiceEditor({
                 {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
+            {initial.number !== undefined && (
+              <label className="f">
+                Invoice number
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><b>INV-</b><input inputMode="numeric" value={num} onChange={(e) => setNum(e.target.value.replace(/\D/g, ''))} /></div>
+              </label>
+            )}
             <label className="f check">
               <input type="checkbox" checked={partner} onChange={(e) => { setPartner(e.target.checked); repriceAll(e.target.checked); }} />
               Use Preferred Partner rates

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { q, tx } from './db';
 import { SESSION_COOKIE, adminPassword, authEnabled, checkSession, makeSession, safeEqual } from './auth';
 import { addDays, toCents, todayStr } from './format';
+import { getSettings } from './data';
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 const num = (f: FormData, k: string) => {
@@ -153,6 +154,12 @@ export async function saveInvoice(id: number | null, f: FormData) {
   const dtype = ['percent', 'flat'].includes(p.discount_type) ? p.discount_type : 'none';
   const dvalue = dtype === 'none' ? 0 : Math.max(0, Number(p.discount_value) || 0);
   const job_id = p.job_id ? parseInt(p.job_id) : null;
+  const newNumber = parseInt(p.number) || 0;
+  if (id && newNumber > 0) {
+    const [clash] = await q('SELECT id FROM invoices WHERE number=$1 AND id<>$2', [newNumber, id]);
+    if (clash) redirect(`/admin/invoices/${id}/edit?error=number`);
+  }
+  const { invoice_start_no } = await getSettings();
   const head = [
     customer_id, job_id, issue, due, dtype, dvalue, String(p.discount_label ?? '').trim(),
     Math.max(0, Number(p.tax_pct) || 0), String(p.notes ?? '').trim(),
@@ -166,12 +173,13 @@ export async function saveInvoice(id: number | null, f: FormData) {
            discount_label=$7, tax_pct=$8, notes=$9 WHERE id=$10`,
         [...head, iid],
       );
+      if (newNumber > 0 && newNumber < 1e9) await query('UPDATE invoices SET number=$1 WHERE id=$2', [newNumber, iid]);
       await query('DELETE FROM invoice_items WHERE invoice_id=$1', [iid]);
     } else {
       const r = await query(
         `INSERT INTO invoices (number, customer_id, job_id, issue_date, due_date, discount_type, discount_value, discount_label, tax_pct, notes, token)
-         VALUES ((SELECT COALESCE(MAX(number), 1000) + 1 FROM invoices), $1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-        [...head, crypto.randomUUID().replace(/-/g, '')],
+         VALUES ((SELECT GREATEST(COALESCE(MAX(number), 0) + 1, $11::int) FROM invoices), $1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+        [...head, crypto.randomUUID().replace(/-/g, ''), parseInt(invoice_start_no) || 1],
       );
       iid = r.rows[0].id;
     }
@@ -211,11 +219,12 @@ export async function addPayment(invoiceId: number, f: FormData) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(s(f, 'paid_date')) ? s(f, 'paid_date') : todayStr();
   const method = s(f, 'method') || 'Cash';
   if (amount <= 0) redirect(`/admin/invoices/${invoiceId}?error=amount`);
+  const { receipt_start_no } = await getSettings();
   const rno = await tx(async (query) => {
     const r = await query(
       `INSERT INTO payments (invoice_id, paid_date, amount_cents, method, reference, note, receipt_no, token)
-       VALUES ($1,$2,$3,$4,$5,$6,(SELECT COALESCE(MAX(receipt_no), 1000) + 1 FROM payments),$7) RETURNING receipt_no`,
-      [invoiceId, date, amount, method, s(f, 'reference'), s(f, 'note'), crypto.randomUUID().replace(/-/g, '')],
+       VALUES ($1,$2,$3,$4,$5,$6,(SELECT GREATEST(COALESCE(MAX(receipt_no), 0) + 1, $8::int) FROM payments),$7) RETURNING receipt_no`,
+      [invoiceId, date, amount, method, s(f, 'reference'), s(f, 'note'), crypto.randomUUID().replace(/-/g, ''), parseInt(receipt_start_no) || 1],
     );
     return r.rows[0].receipt_no as number;
   });
@@ -237,6 +246,10 @@ export async function saveSettings(f: FormData) {
     'business_name', 'owner_name', 'phone', 'email', 'address', 'website', 'tagline',
     'payment_instructions', 'invoice_footer', 'default_terms_days', 'default_tax_pct',
   ];
+  for (const k of ['invoice_start_no', 'receipt_start_no']) {
+    const n = parseInt(s(f, k));
+    if (n > 0 && n < 1e9) keys.push(k);
+  }
   for (const k of keys) {
     await q('INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', [k, s(f, k)]);
   }

@@ -33,6 +33,9 @@ export default async function Settings({ searchParams }: { searchParams: Promise
             <select name="default_terms_days" defaultValue={s.default_terms_days}>{TERMS.map((t) => <option key={t.days} value={t.days}>{t.label}</option>)}</select>
           </label>
           <label className="f">Default sales tax %<input name="default_tax_pct" inputMode="decimal" defaultValue={s.default_tax_pct} /></label>
+          <label className="f">Start invoice numbers at (INV-)<input name="invoice_start_no" inputMode="numeric" defaultValue={s.invoice_start_no} /></label>
+          <label className="f">Start receipt numbers at (RCT-)<input name="receipt_start_no" inputMode="numeric" defaultValue={s.receipt_start_no} /></label>
+          <p className="muted small span-all" style={{ margin: 0 }}>New invoices and receipts count up from these numbers, or from the last one used if that is higher. To change the number on an invoice you already made, open it and choose Edit.</p>
         </div>
         <div><button className="btn" type="submit">Save settings</button></div>
       </form>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { loadInvoices } from '@/lib/data';
 import { fmtDate, money } from '@/lib/format';
 import { StateBadge } from '@/components/ui';
+import MoneyTabs from '@/components/MoneyTabs';
 
 export const metadata = { title: 'Invoices' };
 
@@ -18,6 +19,7 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
   const owed = list.reduce((a, i) => a + (i.state === 'void' ? 0 : Math.max(0, i.balance)), 0);
   return (
     <>
+      <MoneyTabs current="invoices" />
       <div className="head">
         <div><h1>Invoices</h1><div className="sub">{list.length} shown - {money(total)} billed - {money(owed)} still owed</div></div>
         <Link className="btn" href="/admin/invoices/new">New invoice</Link>
