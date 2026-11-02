@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { loadInvoices } from '@/lib/data';
-import { fmtDate, money } from '@/lib/format';
+import { fmtDate, invNo, money } from '@/lib/format';
 import { StateBadge } from '@/components/ui';
 import MoneyTabs from '@/components/MoneyTabs';
 
@@ -31,18 +31,19 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
       </div>
       <div className="card flush">
         {list.length === 0 ? <div className="empty">No invoices here. <Link href="/admin/invoices/new">Create one</Link>.</div> : (
-          <div className="tbl-wrap"><table>
+          <div className="tbl-wrap"><table className="stack-sm">
             <thead><tr><th>Invoice</th><th>Customer</th><th>Issued</th><th>Due</th><th className="right">Total</th><th className="right">Paid</th><th className="right">Balance</th><th>Status</th></tr></thead>
             <tbody>{list.map((i) => (
               <tr key={i.id}>
-                <td><Link href={`/admin/invoices/${i.id}`}><b>INV-{i.number}</b></Link></td>
-                <td><Link href={`/admin/customers/${i.customer_id}`} style={{ color: 'inherit' }}>{i.customer_name}</Link></td>
-                <td className="nowrap">{fmtDate(i.issue_date, false)}</td>
-                <td className="nowrap">{i.due_date === i.issue_date ? 'On receipt' : fmtDate(i.due_date, false)}</td>
-                <td className="right num">{money(i.t.total)}</td>
-                <td className="right num">{money(i.paid)}</td>
-                <td className="right num"><b>{money(Math.max(0, i.balance))}</b></td>
-                <td><StateBadge state={i.state} /></td>
+                <td className="c-sub"><Link href={`/admin/invoices/${i.id}`}><b>{invNo(i.number)}</b></Link></td>
+                <td className="c-main"><Link href={`/admin/invoices/${i.id}`} className="phone-only" style={{ color: 'inherit' }}>{i.customer_name}</Link><Link href={`/admin/customers/${i.customer_id}`} className="wide-only" style={{ color: 'inherit' }}>{i.customer_name}</Link></td>
+                <td className="c-break" aria-hidden="true" />
+                <td className="nowrap c-sub" data-label="Issued">{fmtDate(i.issue_date, false)}</td>
+                <td className="nowrap c-sub" data-label="Due">{i.due_date === i.issue_date ? 'On receipt' : fmtDate(i.due_date, false)}</td>
+                <td className="right num c-hide">{money(i.t.total)}</td>
+                <td className="right num c-hide">{money(i.paid)}</td>
+                <td className="right num c-amt"><b>{money(Math.max(0, i.balance))}</b></td>
+                <td className="c-sub"><StateBadge state={i.state} /></td>
               </tr>
             ))}</tbody>
           </table></div>

@@ -1,4 +1,4 @@
-import Nav from '@/components/Nav';
+import Nav, { PhoneTop } from '@/components/Nav';
 import { logout } from '@/lib/actions';
 import { authEnabled } from '@/lib/auth';
 import { q } from '@/lib/db';
@@ -8,9 +8,12 @@ export default async function Shell({ children }: { children: React.ReactNode })
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand">
-          <b>ABS</b>
-          <span>Admin Hub</span>
+        <div className="side-top">
+          <div className="brand">
+            <b>ABS</b>
+            <span>Admin Hub</span>
+          </div>
+          <PhoneTop showLogout={authEnabled()} logout={logout} />
         </div>
         <Nav pending={n} />
         {authEnabled() && (

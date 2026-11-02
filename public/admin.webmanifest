@@ -1,0 +1,22 @@
+{
+  "name": "ABS Admin Hub",
+  "short_name": "ABS Admin",
+  "description": "Schedule, bookings, invoices and payments for ABS Hauling & Logistics",
+  "id": "/admin",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0f0d",
+  "theme_color": "#0d0f0d",
+  "icons": [
+    { "src": "/icons/abs-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/abs-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/abs-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "New invoice", "url": "/admin/invoices/new", "icons": [{ "src": "/icons/abs-192.png", "sizes": "192x192" }] },
+    { "name": "Schedule", "url": "/admin/schedule", "icons": [{ "src": "/icons/abs-192.png", "sizes": "192x192" }] },
+    { "name": "Payments", "url": "/admin/payments", "icons": [{ "src": "/icons/abs-192.png", "sizes": "192x192" }] }
+  ]
+}

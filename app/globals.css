@@ -245,3 +245,60 @@ td .sub { color: var(--muted); font-size: 13px; }
 .tabs a[aria-current='page'] { color: var(--ink); border-bottom-color: var(--accent); }
 .bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; min-width: 60px; }
 .bar > span { display: block; height: 100%; background: var(--accent); }
+
+/* ---------- Phone layout: top bar + bottom tab bar (installed app or browser) ---------- */
+.ico { flex: none; }
+.ico-wrap { position: relative; display: inline-flex; }
+.dot {
+  position: absolute; top: -6px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--warn); color: #fff; font: 700 11px/18px var(--font); text-align: center;
+}
+.side-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.phone-top { display: flex; align-items: center; gap: 4px; }
+.phone-top a { color: var(--nav-ink); display: inline-flex; padding: 8px; border-radius: 8px; }
+.phone-top a[aria-current='page'] { color: #22c974; background: var(--nav-active); }
+.phone-top .linklike { font-size: 13px; }
+
+@media (max-width: 899px) {
+  .wide-only { display: none !important; }
+  .side {
+    position: sticky; top: 0; z-index: 20;
+    padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: 10px;
+  }
+  .brand b { font-size: 26px; }
+  .nav {
+    position: fixed; z-index: 30; left: 0; right: 0; bottom: 0;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; overflow: visible;
+    background: var(--nav-bg); border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px max(6px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
+  }
+  .nav a {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 2px; font-size: 11px; font-weight: 600; border-radius: 10px; color: #b9c6bb;
+  }
+  .nav a[aria-current='page'] { background: none; color: #22c974; }
+  .nav a[aria-current='page'] .ico-wrap { background: var(--nav-active); border-radius: 999px; padding: 2px 14px; margin: -2px 0; }
+  .main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (min-width: 900px) {
+  .phone-only { display: none !important; }
+  .nav a { display: flex; align-items: center; gap: 10px; }
+  .nav .ico { width: 19px; height: 19px; opacity: 0.85; }
+  .dot { position: static; margin-left: auto; order: 2; }
+  .nav a .ico-wrap { display: contents; }
+}
+
+/* Tables that turn into compact cards on phones: name + amount on top, details in a small line below. */
+@media (max-width: 640px) {
+  table.stack-sm thead { display: none; }
+  table.stack-sm, table.stack-sm tbody { display: block; }
+  table.stack-sm tr { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 2px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  table.stack-sm td { display: block; padding: 0; border: 0; text-align: left; }
+  table.stack-sm td.c-main { order: -3; flex: 1 1 0; min-width: 0; font-weight: 600; }
+  table.stack-sm td.c-amt { order: -2; text-align: right; white-space: nowrap; }
+  table.stack-sm td.c-break { order: -1; flex-basis: 100%; height: 0; }
+  table.stack-sm td.c-sub { font-size: 13px; color: var(--muted); }
+  table.stack-sm td.c-sub[data-label]::before { content: attr(data-label) ' '; }
+  table.stack-sm td.c-hide { display: none; }
+}
+@media (min-width: 641px) { table.stack-sm td.c-break { display: none; } }

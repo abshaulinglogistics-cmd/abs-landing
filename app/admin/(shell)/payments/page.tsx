@@ -78,16 +78,17 @@ export default async function Payments({ searchParams }: { searchParams: Promise
             {method && <Link className="small" href={qs({ method: '' })}>Show all methods</Link>}
           </div>
           {list.length === 0 ? <div className="empty">No payments {r.label.toLowerCase()}. Payments show up here when you record them on an invoice.</div> : (
-            <div className="tbl-wrap"><table>
+            <div className="tbl-wrap"><table className="stack-sm">
               <thead><tr><th>Date</th><th>Customer</th><th>Invoice</th><th>Method</th><th className="right">Amount</th><th>Receipt</th></tr></thead>
               <tbody>{list.map((p) => (
                 <tr key={p.id}>
-                  <td className="nowrap">{fmtDate(p.paid_date, period === 'all' || period.includes('year') ? true : false)}</td>
-                  <td><Link href={`/admin/customers/${p.customer_id}`} style={{ color: 'inherit' }}>{p.customer_name}</Link>{(p.reference || p.note) && <div className="muted small">{[p.reference, p.note].filter(Boolean).join(' - ')}</div>}</td>
-                  <td className="nowrap"><Link href={`/admin/invoices/${p.invoice_id}`}>{invNo(p.invoice_number)}</Link></td>
-                  <td>{p.method}</td>
-                  <td className="right num"><b>{money(p.amount_cents)}</b></td>
-                  <td className="nowrap"><a href={`/api/pdf/receipt/${p.token}`} target="_blank">{rctNo(p.receipt_no)}</a></td>
+                  <td className="nowrap c-sub">{fmtDate(p.paid_date, period === 'all' || period.includes('year') ? true : false)}</td>
+                  <td className="c-main"><Link href={`/admin/customers/${p.customer_id}`} style={{ color: 'inherit' }}>{p.customer_name}</Link>{(p.reference || p.note) && <div className="muted small">{[p.reference, p.note].filter(Boolean).join(' - ')}</div>}</td>
+                  <td className="c-break" aria-hidden="true" />
+                  <td className="nowrap c-sub"><Link href={`/admin/invoices/${p.invoice_id}`}>{invNo(p.invoice_number)}</Link></td>
+                  <td className="c-sub">{p.method}</td>
+                  <td className="right num c-amt"><b>{money(p.amount_cents)}</b></td>
+                  <td className="nowrap c-sub"><a href={`/api/pdf/receipt/${p.token}`} target="_blank">{rctNo(p.receipt_no)}</a></td>
                 </tr>
               ))}</tbody>
             </table></div>
