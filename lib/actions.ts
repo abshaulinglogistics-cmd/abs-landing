@@ -258,6 +258,22 @@ export async function saveGettingPaid(f: FormData) {
   redirect('/admin/settings?saved=1#getpaid');
 }
 
+export async function saveDayRate(f: FormData) {
+  await requireAuth();
+  const vals: Record<string, string> = {
+    day_std: (toCents(s(f, 'day_std')) / 100).toFixed(2),
+    day_partner: (toCents(s(f, 'day_partner')) / 100).toFixed(2),
+    day_loads: String(Math.max(0, Math.min(99, parseInt(s(f, 'day_loads')) || 0))),
+    day_extra_std: (toCents(s(f, 'day_extra_std')) / 100).toFixed(2),
+    day_extra_partner: (toCents(s(f, 'day_extra_partner')) / 100).toFixed(2),
+  };
+  for (const [k, v] of Object.entries(vals)) {
+    await q('INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', [k, v]);
+  }
+  revalidatePath('/admin', 'layout');
+  redirect('/admin/settings?saved=1#dayrate');
+}
+
 // ---------- settings & rate card ----------
 export async function saveSettings(f: FormData) {
   await requireAuth();

@@ -1,4 +1,4 @@
-import { getSettings, loadCustomers, loadJobs, loadServices } from '@/lib/data';
+import { dayRate, getSettings, loadCustomers, loadJobs, loadServices } from '@/lib/data';
 import { saveInvoice } from '@/lib/actions';
 import { fmtDate, todayStr } from '@/lib/format';
 import InvoiceEditor from '@/components/InvoiceEditor';
@@ -28,6 +28,7 @@ export default async function NewInvoice({ searchParams }: { searchParams: Promi
       <InvoiceEditor
         customers={customers.filter((x) => x.status !== 'inactive' || x.id === customerId).map((x) => ({ id: x.id, name: x.name, partner_rate: x.partner_rate, default_discount_pct: x.default_discount_pct }))}
         services={services}
+        dayRate={dayRate(settings)}
         action={saveInvoice.bind(null, null)}
         cancelHref="/admin/invoices"
         initial={{

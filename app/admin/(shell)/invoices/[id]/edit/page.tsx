@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getSettings, loadCustomers, loadInvoices, loadServices } from '@/lib/data';
+import { dayRate, getSettings, loadCustomers, loadInvoices, loadServices } from '@/lib/data';
 import { saveInvoice } from '@/lib/actions';
 import { diffDays, invNo } from '@/lib/format';
 import InvoiceEditor from '@/components/InvoiceEditor';
@@ -12,7 +12,7 @@ export default async function EditInvoice({ params, searchParams }: { params: Pr
   const sp = await searchParams;
   const [inv] = await loadInvoices({ id: Number(id) || 0 });
   if (!inv) notFound();
-  const [customers, services] = await Promise.all([loadCustomers(), loadServices(true)]);
+  const [customers, services, settings] = await Promise.all([loadCustomers(), loadServices(true), getSettings()]);
   const known = new Set(services.map((s) => s.name));
   return (
     <>
@@ -21,6 +21,7 @@ export default async function EditInvoice({ params, searchParams }: { params: Pr
       <InvoiceEditor
         customers={customers.map((x) => ({ id: x.id, name: x.name, partner_rate: x.partner_rate, default_discount_pct: x.default_discount_pct }))}
         services={services}
+        dayRate={dayRate(settings)}
         action={saveInvoice.bind(null, inv.id)}
         cancelHref={`/admin/invoices/${inv.id}`}
         hasPayments={inv.payments.length > 0}

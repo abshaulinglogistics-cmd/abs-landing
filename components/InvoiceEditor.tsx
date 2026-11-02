@@ -5,7 +5,9 @@ import { money, TERMS } from '@/lib/format';
 
 type Cust = { id: number; name: string; partner_rate: boolean; default_discount_pct: number };
 type Svc = { id: number; name: string; unit: string; kind: string; std_cents: number; partner_cents: number };
-type Line = { key: string; serviceId?: number; description: string; qty: string; unit: string; rate: string; std?: number; kind: string; edited?: boolean };
+type Line = { key: string; serviceId?: number; description: string; qty: string; unit: string; rate: string; std?: number; kind: string; edited?: boolean; day?: 'day' | 'extra' };
+type DayRate = { std: number; partner: number; loads: number; extraStd: number; extraPartner: number }; // cents
+type DayRow = { key: string; date: string; loads: string };
 type Initial = {
   number?: number; // set when editing
   customer_id: number | '';
@@ -29,7 +31,7 @@ const cents = (v: string) => {
 const dollars = (c: number) => (c / 100).toFixed(2);
 
 export default function InvoiceEditor({
-  customers, services, initial, action, cancelHref, hasPayments,
+  customers, services, dayRate: dr, initial, action, cancelHref, hasPayments,
 }: {
   customers: Cust[];
   services: Svc[];
@@ -37,6 +39,7 @@ export default function InvoiceEditor({
   action: (f: FormData) => Promise<void>;
   cancelHref: string;
   hasPayments?: boolean;
+  dayRate: DayRate;
 }) {
   const [customerId, setCustomerId] = useState<number | ''>(initial.customer_id);
   const [issue, setIssue] = useState(initial.issue_date);
@@ -67,9 +70,43 @@ export default function InvoiceEditor({
       if (!dLabel) setDLabel('Recurring account discount');
     }
   }
+  // Day rate pricing (partner price only when set and lower than standard)
+  const pick = (std: number, par: number, p: boolean) => (p && par > 0 ? par : std);
+  const was = (std: number, par: number, p: boolean) => (p && par > 0 && std > par ? std : 0);
+  const dayPrice = (kind: 'day' | 'extra', p: boolean) =>
+    kind === 'day' ? { rate: pick(dr.std, dr.partner, p), std: was(dr.std, dr.partner, p) } : { rate: pick(dr.extraStd, dr.extraPartner, p), std: was(dr.extraStd, dr.extraPartner, p) };
+  const [dayOpen, setDayOpen] = useState(false);
+  const [days, setDays] = useState<DayRow[]>([]);
+  function openDays() {
+    setDays([{ key: key(), date: issue, loads: String(dr.loads || 1) }]);
+    setDayOpen(true);
+  }
+  const fmtDay = (d: string) => {
+    const [y, m, dd] = d.split('-').map(Number);
+    return y ? new Date(Date.UTC(y, m - 1, dd)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }) : d;
+  };
+  const dayRows = days.filter((d) => d.date && d.loads.trim() !== '').map((d) => ({ ...d, n: Math.max(0, parseInt(d.loads) || 0) }));
+  const dayTotal = dayRows.reduce((a, d) => a + dayPrice('day', partner).rate + Math.max(0, d.n - dr.loads) * dayPrice('extra', partner).rate, 0);
+  function addDayLines() {
+    const add: Line[] = [];
+    for (const d of [...dayRows].sort((a, b) => (a.date < b.date ? -1 : 1))) {
+      const extra = Math.max(0, d.n - dr.loads);
+      const dp = dayPrice('day', partner), ep = dayPrice('extra', partner);
+      add.push({ key: key(), day: 'day', description: `Day rate - ${fmtDay(d.date)}: ${d.n} load${d.n === 1 ? '' : 's'} completed (${dr.loads} included)`, qty: '1', unit: 'day', rate: dollars(dp.rate), std: dp.std, kind: 'service' });
+      if (extra > 0) add.push({ key: key(), day: 'extra', description: `Extra loads - ${fmtDay(d.date)} (${extra} over ${dr.loads})`, qty: String(extra), unit: 'load', rate: dollars(ep.rate), std: ep.std, kind: 'service' });
+    }
+    if (!add.length) return;
+    setLines((ls) => [...ls, ...add]);
+    setDayOpen(false);
+  }
+
   function repriceAll(p: boolean) {
     setLines((ls) =>
       ls.map((l) => {
+        if (l.day) {
+          const dp = dayPrice(l.day, p);
+          return l.edited ? { ...l, std: dp.std } : { ...l, rate: dollars(dp.rate), std: dp.std };
+        }
         const s = services.find((x) => x.id === l.serviceId);
         if (!s) return l;
         return l.edited ? { ...l, std: svcStd(s, p) } : { ...l, rate: dollars(svcPrice(s, p)), std: svcStd(s, p) };
@@ -152,7 +189,43 @@ export default function InvoiceEditor({
             <button type="button" className="btn ghost" onClick={() => setLines((ls) => [...ls, { key: key(), description: 'Dump / landfill fee (at cost)', qty: '1', unit: '', rate: '0.00', kind: 'disposal' }])}>
               + Dump fee
             </button>
+            <button type="button" className="btn ghost" onClick={() => (dayOpen ? setDayOpen(false) : openDays())} aria-expanded={dayOpen}>
+              + Day rate
+            </button>
           </div>
+          {dayOpen && (
+            <div className="daybox">
+              <div className="muted small">
+                {money(dayPrice('day', partner).rate)} per day{partner && dayPrice('day', partner).std ? ' (partner)' : ''}, includes {dr.loads} load{dr.loads === 1 ? '' : 's'}. Each extra load {money(dayPrice('extra', partner).rate)}.
+              </div>
+              {days.map((d, i) => {
+                const n = Math.max(0, parseInt(d.loads) || 0);
+                const extra = Math.max(0, n - dr.loads);
+                return (
+                  <div className="dayrow" key={d.key}>
+                    <label className="f">Day {i + 1}<input type="date" value={d.date} onChange={(e) => setDays((ds) => ds.map((x) => (x.key === d.key ? { ...x, date: e.target.value } : x)))} /></label>
+                    <label className="f">Loads completed<input inputMode="numeric" value={d.loads} onChange={(e) => setDays((ds) => ds.map((x) => (x.key === d.key ? { ...x, loads: e.target.value.replace(/\D/g, '') } : x)))} /></label>
+                    <div className="num small dayamt">
+                      <b>{money(dayPrice('day', partner).rate + extra * dayPrice('extra', partner).rate)}</b>
+                      <div className="muted">{extra > 0 ? `${extra} extra load${extra === 1 ? '' : 's'}` : `within ${dr.loads} included`}</div>
+                    </div>
+                    <button type="button" className="btn ghost x" aria-label="Remove day" onClick={() => setDays((ds) => ds.filter((x) => x.key !== d.key))} disabled={days.length === 1}>&times;</button>
+                  </div>
+                );
+              })}
+              <div className="actions">
+                <button type="button" className="btn ghost sm" onClick={() => setDays((ds) => {
+                  const last = ds[ds.length - 1]?.date || issue;
+                  const [y, m, dd] = last.split('-').map(Number);
+                  const next = new Date(Date.UTC(y, m - 1, dd + 1)).toISOString().slice(0, 10);
+                  return [...ds, { key: key(), date: next, loads: String(dr.loads || 1) }];
+                })}>+ Another day</button>
+                <span className="grow" />
+                <span className="num"><span className="muted small">{dayRows.length} day{dayRows.length === 1 ? '' : 's'}:</span> <b>{money(dayTotal)}</b></span>
+                <button type="button" className="btn sm" onClick={addDayLines} disabled={!dayRows.length}>Add to invoice</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card">

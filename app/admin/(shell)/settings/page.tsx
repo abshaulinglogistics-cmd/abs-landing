@@ -1,6 +1,6 @@
 import { getSettings, loadServices } from '@/lib/data';
 import { getBookingSettings } from '@/lib/booking';
-import { removePushDevice, saveBookingSettings, saveGettingPaid, saveService, saveSettings } from '@/lib/actions';
+import { removePushDevice, saveBookingSettings, saveDayRate, saveGettingPaid, saveService, saveSettings } from '@/lib/actions';
 import { squareLocation, squareReady } from '@/lib/square';
 import { getOrigin } from '@/lib/data';
 import PushSetup from '@/components/PushSetup';
@@ -121,6 +121,19 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           <textarea name="book_blocked" defaultValue={bk.book_blocked} placeholder="2026-11-26, 2026-12-25" />
         </label>
         <div><button className="btn" type="submit">Save booking settings</button></div>
+      </form>
+
+      <form action={saveDayRate} className="card stack" id="dayrate" style={{ marginTop: 18, maxWidth: 860 }}>
+        <h2>Day rate</h2>
+        <p className="muted small" style={{ margin: 0 }}>A flat price per day that covers a set number of loads. Loads beyond that are charged per load. Add it to an invoice with <b>+ Day rate</b> and enter the loads completed each day.</p>
+        <div className="grid">
+          <label className="f">Day rate, standard $<input name="day_std" inputMode="decimal" defaultValue={s.day_std} /></label>
+          <label className="f">Day rate, partner $<input name="day_partner" inputMode="decimal" defaultValue={s.day_partner} /></label>
+          <label className="f">Loads included per day<input name="day_loads" inputMode="numeric" defaultValue={s.day_loads} /></label>
+          <label className="f">Each extra load, standard $<input name="day_extra_std" inputMode="decimal" defaultValue={s.day_extra_std} /></label>
+          <label className="f">Each extra load, partner $<input name="day_extra_partner" inputMode="decimal" defaultValue={s.day_extra_partner} /></label>
+        </div>
+        <div><button className="btn" type="submit">Save day rate</button></div>
       </form>
 
       <div className="card flush" id="rates" style={{ marginTop: 18, maxWidth: 1100 }}>

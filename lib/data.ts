@@ -23,10 +23,22 @@ export const SETTING_DEFAULTS = {
   card_enabled: '',
   card_fee_pct: '3',
   card_fee_fixed: '0',
+  // Day rate: a flat price per day that covers a number of loads; loads beyond that cost extra. Dollars.
+  day_std: '1200.00',
+  day_partner: '1050.00',
+  day_loads: '3',
+  day_extra_std: '350.00',
+  day_extra_partner: '300.00',
   invoice_start_no: '2418',
   receipt_start_no: '2418',
 };
 export type Settings = typeof SETTING_DEFAULTS;
+
+export type DayRate = { std: number; partner: number; loads: number; extraStd: number; extraPartner: number }; // cents
+export function dayRate(s: Settings): DayRate {
+  const c = (v: string) => Math.max(0, Math.round((parseFloat(v) || 0) * 100));
+  return { std: c(s.day_std), partner: c(s.day_partner), loads: Math.max(0, parseInt(s.day_loads) || 0), extraStd: c(s.day_extra_std), extraPartner: c(s.day_extra_partner) };
+}
 
 export async function getSettings(): Promise<Settings> {
   const rows = await q<{ key: string; value: string }>('SELECT key, value FROM settings');
